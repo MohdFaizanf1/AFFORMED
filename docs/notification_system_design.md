@@ -407,7 +407,7 @@ WHERE studentID = 1042 AND isRead = false
 ORDER BY createdAt ASC;
 ```
 
----
+   
 
 ## Is The Query accurate?
 
@@ -430,7 +430,7 @@ The query also performs sorting using `createdAt` which increases the time cost 
 
 Using `SELECT *` is another issue because it fetches all columns even if only a few are columns are required
 
----
+   
 
 ## Improved Query
 
@@ -476,7 +476,7 @@ O(n)
 
 where `n` is total no of notifications.
 
----
+   
 
 ### With Index
 
@@ -490,7 +490,7 @@ O(log n)
 
 which is much faster.
 
----
+   
 
 ## Should We Add Indexes On Every Column?
 
@@ -517,7 +517,7 @@ For this system, useful columns are:
 - created_at
 - notification_type
 
----
+   
 
 ## Query To Find Students Who Got Placement Notifications In Last 7 Days
 
@@ -538,7 +538,7 @@ This query gives the name of all student who recieved the placement notification
 Currently notifications are fetch on every page load for exery student.
 This can overload the database and make the application slow.
 
----
+   
 
 ## Suggested Improvements
 
@@ -555,7 +555,7 @@ Instead of calling the notification API on every page load, the frontend should 
 
 This reduces unnecessary API calls, but notifications may not update instantly unless WebSocket is also used.
 
----
+   
 
 ## 2. Use WebSocket For Real-Time Notifications
 
@@ -567,7 +567,7 @@ When a new notification is created, the backend can push it directly to the fron
 
 WebSocket improves real-time experience, but it requires connection handling, reconnection logic, and more server resources.
 
----
+   
 
 ## 3. Use Redis Cache
 
@@ -586,7 +586,7 @@ The API can first check Redis. If data is available, it can return from cache in
 
 Cache makes response faster, but cache data must be updated correctly when notifications are created or marked as read.
 
----
+   
 
 ## 4. Use Pagination
 
@@ -602,7 +602,7 @@ Example:
 
 Pagination reduces load, but frontend has to handle next page or infinite scrolling.
 
----
+   
 
 ## 5. Maintain Unread Count Separately
 
@@ -624,7 +624,7 @@ When notification is marked read, decrease `unread_count`.
 
 This makes unread count very fast, but it must be updated carefully to avoid wrong count.
 
----
+   
 
 ## 6. Use Database Indexing
 
@@ -639,7 +639,7 @@ ON notifications (student_id, is_read, created_at DESC);
 
 Indexes make read queries faster, but insert and update operations become slightly slower.
 
----
+   
 
 ## Final Suggested Approach
 
@@ -653,3 +653,111 @@ The best approach is to combine multiple techniques:
 - Store unread count separately
 
 This will reduce database load and improve user experience.
+
+# Stage 5
+
+## Problems In Current Implementation
+
+The current implementation has multiple issues:
+
+- Notifications are sent one by one, so the process becomes very slow for 50,000 students.
+- If the email API fails in the middle, some students may not receive notifications.
+- Database saving and email sending are directly connected.
+- The process is synchronous, so HR has to wait until all notifications are completed.
+
+   
+
+## Better Solution
+
+A better approach is to use:
+
+- message queue
+- background workers
+- retry mechanism
+
+Instead of sending notifications directly inside the loop, the system should first store notifications and then process email sending separately in the background.
+
+   
+
+## Should DB Save And Email Sending Happen Together?
+
+No.
+
+Saving notifications in the database is important because it keeps a permanent record.
+
+Email sending depends on external APIs and may fail due to:
+- network issue
+- timeout
+- email service downtime
+
+So first save notifications safely in DB, then process emails asynchronously.
+
+   
+
+## Improved Flow
+
+1. HR clicks "Notify All"
+2. Notifications are stored in database
+3. Notification jobs are added to queue
+4. Worker processes jobs in background
+5. Emails and app notifications are sent
+6. Failed jobs are retried automatically
+
+   
+
+## Revised Pseudocode
+
+```python
+function notify_all(student_ids, message):
+
+    for student_id in student_ids:
+
+        save_to_db(student_id, message)
+
+        queue.push({
+            "student_id": student_id,
+            "message": message
+        })
+```
+
+   
+
+## Worker Process
+
+```python
+function worker(job):
+
+    try:
+
+        send_email(job.student_id, job.message)
+
+        push_to_app(job.student_id, job.message)
+
+    except Exception:
+
+        retry_job(job)
+```
+
+   
+
+## Advantages
+
+- Faster processing
+- Better scalability
+- Failed emails can be retried
+- Database remains consistent
+- Better user experience
+
+   
+
+## Final Approach
+
+The best solution is to:
+
+- store notifications first
+- use queues and workers
+- send emails asynchronously
+- retry failed jobs automatically
+
+This makes the system reliable and scalable.
+

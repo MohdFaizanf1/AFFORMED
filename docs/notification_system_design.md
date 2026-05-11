@@ -761,3 +761,23 @@ The best solution is to:
 
 This makes the system reliable and scalable.
 
+
+
+
+# Stage 6
+
+## Priority Notification Approach
+
+For priority notifications, I used a scoring method.
+
+Placement notifications have the highest priority, Result notifications have medium priority, and Event notifications have the lowest priority.
+
+Recent notifications are also given higher priority using timestamp.
+
+The code sorts notifications based on:
+- notification type weight
+- notification recency
+
+After sorting, top 10 notifications are displayed.
+
+To efficiently maintain top notifications when new notifications arrive continuously, a min-heap of size 10 can be used. This avoids sorting the complete list repeatedly.

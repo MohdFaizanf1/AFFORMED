@@ -1,35 +1,4 @@
-const notifications = [
-  {
-    ID: "1",
-    Type: "Placement",
-    Message: "CSX Corporation hiring",
-    Timestamp: "2026-04-22 17:51:18",
-  },
-  {
-    ID: "2",
-    Type: "Result",
-    Message: "Mid-sem result declared",
-    Timestamp: "2026-04-22 17:51:30",
-  },
-  {
-    ID: "3",
-    Type: "Event",
-    Message: "Farewell Event",
-    Timestamp: "2026-04-22 17:50:00",
-  },
-  {
-    ID: "4",
-    Type: "Placement",
-    Message: "AMD hiring",
-    Timestamp: "2026-04-22 17:55:00",
-  },
-  {
-    ID: "5",
-    Type: "Result",
-    Message: "Project review",
-    Timestamp: "2026-04-22 17:40:00",
-  },
-];
+const API_URL = "http://4.224.186.213/evaluation-service/notifications";
 
 const priorityWeight = {
   Placement: 3,
@@ -46,12 +15,18 @@ function getScore(notification) {
 
 function getTop10Notifications(notifications) {
   return notifications
+    .filter((notification) => notification.Type && notification.Timestamp)
     .sort((a, b) => getScore(b) - getScore(a))
     .slice(0, 10);
 }
 
 function printNotifications(notifications) {
   console.log("\nTop 10 Priority Notifications\n");
+
+  if (notifications.length === 0) {
+    console.log("No notifications found.");
+    return;
+  }
 
   notifications.forEach((notification, index) => {
     console.log(`${index + 1}. ${notification.Type}`);
@@ -62,6 +37,23 @@ function printNotifications(notifications) {
   });
 }
 
-const top10 = getTop10Notifications(notifications);
+async function main() {
+  try {
+    const response = await fetch(API_URL);
 
-printNotifications(top10);
+    if (!response.ok) {
+      throw new Error(`API failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const notifications = data.notifications || [];
+
+    const top10 = getTop10Notifications(notifications);
+    printNotifications(top10);
+  } catch (error) {
+    console.log("Error:", error.message);
+    console.log("The API may be protected or temporarily unavailable.");
+  }
+}
+
+main();

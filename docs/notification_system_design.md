@@ -768,16 +768,27 @@ This makes the system reliable and scalable.
 
 ## Priority Notification Approach
 
-For priority notifications, I used a scoring method.
+For Priority Inbox, I used a scoring method. Placement notifications get the highest weight, Result notifications get medium weight, and Event notifications get the lowest weight.
 
-Placement notifications have the highest priority, Result notifications have medium priority, and Event notifications have the lowest priority.
+Priority weights used:
 
-Recent notifications are also given higher priority using timestamp.
+- Placement = 3
+- Result = 2
+- Event = 1
 
-The code sorts notifications based on:
-- notification type weight
-- notification recency
+After type weight, recent notifications are given higher priority using timestamp.
 
-After sorting, top 10 notifications are displayed.
+The code fetches notifications from the given API, calculates priority score, sorts the list, and displays the top 10 notifications.
 
-To efficiently maintain top notifications when new notifications arrive continuously, a min-heap of size 10 can be used. This avoids sorting the complete list repeatedly.
+## Maintaining Top 10 Efficiently
+
+If new notifications keep coming, sorting the whole list every time is not efficient. A better way is to maintain a min-heap of size 10.
+
+For every new notification:
+
+- calculate its score
+- compare it with the lowest score in heap
+- if new score is higher, replace the lowest item
+- otherwise ignore it
+
+This keeps top 10 updated efficiently.

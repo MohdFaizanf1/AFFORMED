@@ -390,3 +390,143 @@ Old notifications can be moved to an archive table after some time.
 ### 5. Partitioning
 
 If the table becomes very large, it can be partitioned by month or year using `created_at`.
+
+
+
+
+
+
+
+# Stage 3
+
+## Given Query is 
+
+```sql
+SELECT * FROM notifications
+WHERE studentID = 1042 AND isRead = false
+ORDER BY createdAt ASC;
+```
+
+---
+
+## Is The Query accurate?
+
+
+Yes this query is correct because it fetches unread notification of a particular student and sorts them 
+
+
+## Why Is The Query Slow?
+
+This query  becomes slower because in this table contains millions of notifications
+
+The database now contains:
+
+- 50000 students
+- 5000000 notifications
+
+Without proper indexing the database may scan a large number of rows before finding matching notifications.
+
+The query also performs sorting using `createdAt` which increases the time cost further.
+
+Using `SELECT *` is another issue because it fetches all columns even if only a few are columns are required
+
+---
+
+## Improved Query
+
+```sql
+SELECT id, notification_type, message, createdAt
+FROM notifications
+WHERE student_id = 1042
+AND is_read = FALSE
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+### Improvements Made
+
+- Selected only required columns
+- Added `LIMIT`
+- Used descending order to get latest notifications first
+
+
+
+## Recommended Index
+
+```sql
+CREATE INDEX idx_notifications_student_read_created
+ON notifications (student_id, is_read, created_at DESC);
+```
+
+By using this index helps the database directly find unread notifications of a student without scanning the full table.
+
+
+
+## Likely Computation Cost
+
+### Without Index
+
+The database may perform a full table scan.
+
+Cost is almost:
+
+```txt
+O(n)
+```
+
+where `n` is total no of notifications.
+
+---
+
+### With Index
+
+The database can directly search matching rows using the index.
+
+Appx cost:
+
+```txt
+O(log n)
+```
+
+which is much faster.
+
+---
+
+## Should We Add Indexes On Every Column?
+
+No, adding indexes on every column is not a good idea.
+
+Too many indexes create problems such as:
+
+- increased storage usage
+- slower INSERT operations
+- slower UPDATE operations
+- slower DELETE operations
+- extra maintenance 
+
+Indexes should only be added on columns that are frequently used in:
+
+- WHERE
+- JOIN
+- ORDER BY
+
+For this system, useful columns are:
+
+- student_id
+- is_read
+- created_at
+- notification_type
+
+---
+
+## Query To Find Students Who Got Placement Notifications In Last 7 Days
+
+```sql
+SELECT DISTINCT student_id
+FROM notifications
+WHERE notification_type = 'Placement'
+AND created_at >= CURRENT_DATE - INTERVAL '7 days';
+```
+
+This query gives the name of all student who recieved the placement notification in the last 7 days
+

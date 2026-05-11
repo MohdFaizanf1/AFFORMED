@@ -530,3 +530,126 @@ AND created_at >= CURRENT_DATE - INTERVAL '7 days';
 
 This query gives the name of all student who recieved the placement notification in the last 7 days
 
+
+
+# Stage 4
+
+## Problem
+Currently notifications are fetch on every page load for exery student.
+This can overload the database and make the application slow.
+
+---
+
+## Suggested Improvements
+
+## 1. Fetch Notifications Only When Needed
+
+Instead of calling the notification API on every page load, the frontend should fetch notifications only when:
+
+- the user opens the notification panel
+- the user clicks the bell icon
+- the user refreshes notifications manually
+- a real-time notification event is received
+
+### Tradeoff
+
+This reduces unnecessary API calls, but notifications may not update instantly unless WebSocket is also used.
+
+---
+
+## 2. Use WebSocket For Real-Time Notifications
+
+WebSocket should be used to send new notifications from the server to the logged-in user.
+
+When a new notification is created, the backend can push it directly to the frontend.
+
+### Tradeoff
+
+WebSocket improves real-time experience, but it requires connection handling, reconnection logic, and more server resources.
+
+---
+
+## 3. Use Redis Cache
+
+Frequently used data like unread count and recent notifications can be stored in Redis.
+
+Example cache keys:
+
+```txt
+student:1042:unread_count
+student:1042:recent_notifications
+```
+
+The API can first check Redis. If data is available, it can return from cache instead of querying the database.
+
+### Tradeoff
+
+Cache makes response faster, but cache data must be updated correctly when notifications are created or marked as read.
+
+---
+
+## 4. Use Pagination
+
+The API should not return all notifications at once. It should return limited records.
+
+Example:
+
+```http
+/api/v1/notifications?page=1&limit=10
+```
+
+### Tradeoff
+
+Pagination reduces load, but frontend has to handle next page or infinite scrolling.
+
+---
+
+## 5. Maintain Unread Count Separately
+
+Instead of running `COUNT(*)` every time, unread count can be stored separately.
+
+Example table:
+
+```sql
+CREATE TABLE notification_summary (
+    student_id BIGINT PRIMARY KEY,
+    unread_count INT DEFAULT 0
+);
+```
+
+When a new notification is added, increase `unread_count`.  
+When notification is marked read, decrease `unread_count`.
+
+### Tradeoff
+
+This makes unread count very fast, but it must be updated carefully to avoid wrong count.
+
+---
+
+## 6. Use Database Indexing
+
+Indexes should be used on fields that are used often in queries.
+
+```sql
+CREATE INDEX idx_notifications_student_read_created
+ON notifications (student_id, is_read, created_at DESC);
+```
+
+### Tradeoff
+
+Indexes make read queries faster, but insert and update operations become slightly slower.
+
+---
+
+## Final Suggested Approach
+
+The best approach is to combine multiple techniques:
+
+- Use WebSocket for new notifications
+- Use Redis for unread count and recent notifications
+- Fetch notifications only when user opens the notification panel
+- Use pagination for notification list
+- Use proper database indexes
+- Store unread count separately
+
+This will reduce database load and improve user experience.
